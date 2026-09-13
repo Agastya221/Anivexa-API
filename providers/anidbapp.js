@@ -9,14 +9,8 @@ import {
   stripTags,
 } from "../core/new-provider-utils.js";
 import { get, set, isFresh, SHOW_IDENTITY_TTL } from "../core/smartcache.js";
-import { execFile } from "child_process";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
-
 const BASE = "https://anidb.app";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
-const COOKIE_JAR = "/tmp/anidbapp_cookies.txt";
 
 const NAV_HEADERS = [
   "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -43,24 +37,18 @@ const XHR_HEADERS = [
   "X-Requested-With: XMLHttpRequest",
 ];
 
-async function curlFetch(url, headers, extraArgs = []) {
-  const args = [
-    "-s",
-    "--compressed",
-    "-A", UA,
-    "-c", COOKIE_JAR,
-    "-b", COOKIE_JAR,
-    "-w", "\n__STATUS:%{http_code}",
-    ...headers.flatMap(h => ["-H", h]),
-    ...extraArgs,
-    url,
-  ];
-  const { stdout } = await execFileAsync("curl", args, { maxBuffer: 8 * 1024 * 1024 });
-  const sep = stdout.lastIndexOf("\n__STATUS:");
-  const status = sep >= 0 ? Number(stdout.slice(sep + 10)) : 0;
-  const body = sep >= 0 ? stdout.slice(0, sep) : stdout;
-  if (status < 200 || status >= 300) {
-    const err = new Error(`HTTP ${status} fetching ${url}`);
+async function curlFetch(url, headers = []) {
+  const headerObj = {};
+  for (const h of headers) {
+    const idx = h.indexOf(":");
+    if (idx > 0) headerObj[h.slice(0, idx).trim()] = h.slice(idx + 1).trim();
+  }
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, ...headerObj },
+  });
+  const body = await res.text();
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status} fetching ${url}`);
     err.rawBody = body;
     throw err;
   }

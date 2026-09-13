@@ -144,39 +144,34 @@ export async function buildEpisodesWithCache(anilistId, media, anizip) {
   const status = media?.status ?? "RELEASING";
   const ctx = { media, anizip, maxPages: undefined };
 
-  const [mkissa, reanime, anikoto, animegg, anineko, anidbapp, dhive, animenosub, anizone, aniwaves, anibd, senshi, kaa, animedunya, animeonsen] = await Promise.all([
-    safe("mkissa",     () => withCache(`epv:mkissa:${anilistId}`,     status, () => mkissaEpisodes(anilistId, ctx))),
+  // Primary reliable providers that work within Cloudflare subrequest limits (< 50 total)
+  const [reanime, anikoto, dhive, anizone, aniwaves, animeonsen, animegg, anineko] = await Promise.all([
     safe("reanime",    () => withCache(`epv:reanime:${anilistId}`,    status, () => reanimeEpisodes(anilistId, ctx))),
     safe("anikoto",    () => withCache(`epv:anikoto:${anilistId}`,    status, () => anikotoEpisodes(anilistId, ctx))),
-    safe("animegg",    () => withCache(`epv:animegg:${anilistId}`,    status, () => animeggEpisodes(anilistId, ctx))),
-    safe("anineko",    () => withCache(`epv:anineko:${anilistId}`,    status, () => aninekoEpisodes(anilistId, ctx))),
-    safe("anidbapp",   () => withCache(`epv:anidbapp:${anilistId}`,   status, () => anidbappEpisodes(anilistId, ctx))),
     safe("2dhive",     () => withCache(`epv:2dhive:${anilistId}`,     status, () => dhiveEpisodes(anilistId, ctx))),
-    safe("animenosub", () => withCache(`epv:animenosub:${anilistId}`, status, () => animenosubEpisodes(anilistId, ctx))),
     safe("anizone",    () => withCache(`epv:anizone:${anilistId}`,    status, () => anizoneEpisodes(anilistId, ctx))),
     safe("aniwaves",   () => withCache(`epv:aniwaves:${anilistId}`,   status, () => aniwavesEpisodes(anilistId, ctx))),
-    safe("anibd",      () => withCache(`epv:anibd:${anilistId}`,      status, () => anibdEpisodes(anilistId, ctx))),
-    safe("senshi",     () => withCache(`epv:senshi:${anilistId}`,     status, () => senshiEpisodes(anilistId, ctx))),
-    safe("kaa",        () => withCache(`epv:kaa:${anilistId}`,        status, () => kaaEpisodes(anilistId, ctx))),
-    safe("animedunya", () => withCache(`epv:animedunya:${anilistId}`, status, () => animedunyaEpisodes(anilistId, ctx))),
     safe("animeonsen", () => withCache(`epv:animeonsen:${anilistId}`, status, () => animeonsenEpisodes(anilistId, ctx))),
+    safe("animegg",    () => withCache(`epv:animegg:${anilistId}`,    status, () => animeggEpisodes(anilistId, ctx))),
+    safe("anineko",    () => withCache(`epv:anineko:${anilistId}`,    status, () => aninekoEpisodes(anilistId, ctx))),
   ]);
 
   return {
-    mkissa:      mkissa.ok      ? mkissa.data      : { error: mkissa.error,      stack: mkissa.stack },
     reanime:     reanime.ok     ? reanime.data     : { error: reanime.error,     stack: reanime.stack },
     anikoto:     anikoto.ok     ? anikoto.data     : { error: anikoto.error,     stack: anikoto.stack },
-    animegg:     animegg.ok     ? animegg.data     : { error: animegg.error,     stack: animegg.stack },
-    anineko:     anineko.ok     ? anineko.data     : { error: anineko.error,     stack: anineko.stack },
-    anidbapp:    anidbapp.ok    ? anidbapp.data    : { error: anidbapp.error,    stack: anidbapp.stack },
     "2dhive":    dhive.ok       ? dhive.data       : { error: dhive.error,       stack: dhive.stack },
-    animenosub:  animenosub.ok  ? animenosub.data  : { error: animenosub.error,  stack: animenosub.stack },
     anizone:     anizone.ok     ? anizone.data     : { error: anizone.error,     stack: anizone.stack },
     aniwaves:    aniwaves.ok    ? aniwaves.data    : { error: aniwaves.error,    stack: aniwaves.stack },
-    anibd:       anibd.ok       ? anibd.data       : { error: anibd.error,       stack: anibd.stack },
-    senshi:      senshi.ok      ? senshi.data      : { error: senshi.error,      stack: senshi.stack },
-    kaa:         kaa.ok         ? kaa.data         : { error: kaa.error,         stack: kaa.stack },
-    animedunya:  animedunya.ok  ? animedunya.data  : { error: animedunya.error,  stack: animedunya.stack },
     animeonsen:  animeonsen.ok  ? animeonsen.data  : { error: animeonsen.error,  stack: animeonsen.stack },
+    animegg:     animegg.ok     ? animegg.data     : { error: animegg.error,     stack: animegg.stack },
+    anineko:     anineko.ok     ? anineko.data     : { error: anineko.error,     stack: anineko.stack },
+    // Secondary/Node-only providers set as on-demand (accessible via /episodes/:provider/:id)
+    anidbapp:    { error: "Use /episodes/anidbapp/:id for on-demand fetch" },
+    mkissa:      { error: "Use /episodes/mkissa/:id for on-demand fetch" },
+    animenosub:  { error: "Use /episodes/animenosub/:id for on-demand fetch" },
+    anibd:       { error: "Use /episodes/anibd/:id for on-demand fetch" },
+    senshi:      { error: "Use /episodes/senshi/:id for on-demand fetch" },
+    kaa:         { error: "Use /episodes/kaa/:id for on-demand fetch" },
+    animedunya:  { error: "Use /episodes/animedunya/:id for on-demand fetch" },
   };
 }
