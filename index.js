@@ -86,10 +86,6 @@ export default {
       });
     }
 
-    if (path === "/proxy") {
-      return reanimeHandler.fetch(request);
-    }
-
     let m = path.match(/^\/map\/(\d+)\/?$/);
     if (m) {
       const anilistId = m[1];

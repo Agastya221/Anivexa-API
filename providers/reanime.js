@@ -247,36 +247,31 @@ async function handleWatch3(anilistId, audio, epNum, origin) {
   }
   const { title: title2, slug, watchData, stream, server, servers, streams, failedServers } = resolved;
   const seenStreamUrls = new Set();
-  const cleanStreams = streams.map(({ server: source, stream: item, index }) => {
-    const proxiedUrl = origin ? `${origin}/proxy?url=${encodeURIComponent(item.url)}&referer=${encodeURIComponent(FLIX)}` : item.url;
-    return {
-      server: source.serverName,
-      audio: source.dataType,
-      index,
-      url: proxiedUrl,
-      raw_url: item.url,
-      type: "hls",
-      embed: source.dataLink,
-      subtitles: item.subtitles ?? [],
-      thumbnails_vtt: item.thumbnails_vtt ?? null,
-      video_title: item.video_title ?? null,
-      intro: item.intro_chapter ?? null,
-      outro: item.outro_chapter ?? null
-    };
-  }).filter((item) => {
+  const cleanStreams = streams.map(({ server: source, stream: item, index }) => ({
+    server: source.serverName,
+    audio: source.dataType,
+    index,
+    url: item.url,
+    type: "hls",
+    embed: source.dataLink,
+    subtitles: item.subtitles ?? [],
+    thumbnails_vtt: item.thumbnails_vtt ?? null,
+    video_title: item.video_title ?? null,
+    intro: item.intro_chapter ?? null,
+    outro: item.outro_chapter ?? null
+  })).filter((item) => {
     if (seenStreamUrls.has(item.url)) return false;
     seenStreamUrls.add(item.url);
     return true;
   });
   const embeds = servers.map((s) => ({ name: s.serverName, type: s.dataType, url: s.dataLink }));
-  const mainProxiedUrl = origin ? `${origin}/proxy?url=${encodeURIComponent(stream.url)}&referer=${encodeURIComponent(FLIX)}` : stream.url;
   return json3({
     anime: title2,
     slug,
     ep,
     audio,
     server,
-    stream_url: mainProxiedUrl,
+    stream_url: stream.url,
     streams: cleanStreams,
     subtitles: stream.subtitles,
     thumbnails_vtt: stream.thumbnails_vtt,
@@ -313,38 +308,6 @@ async function handleStream3(anilistId, audio, epNum) {
   });
 }
 __name(handleStream3, "handleStream");
-function rewriteM3U8(playlist, baseUrl, origin, referer) {
-  const parsedTarget = new URL(baseUrl);
-  const rewriteUrl = (urlStr) => {
-    if (urlStr.startsWith("data:") || urlStr.startsWith("skd:")) return urlStr;
-    try {
-      const resolved = new URL(urlStr, parsedTarget);
-      if (!resolved.search && parsedTarget.search) {
-        resolved.search = parsedTarget.search;
-      }
-      const proxied = new URL("/proxy", origin);
-      proxied.searchParams.set("url", resolved.toString());
-      if (referer) proxied.searchParams.set("referer", referer);
-      return proxied.toString();
-    } catch {
-      return urlStr;
-    }
-  };
-
-  return playlist
-    .split("\n")
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return line;
-      if (trimmed.startsWith("#")) {
-        return line.replace(/URI=["']([^"']+)["']/g, (_, uri) => `URI="${rewriteUrl(uri)}"`);
-      }
-      return rewriteUrl(trimmed);
-    })
-    .join("\n");
-}
-__name(rewriteM3U8, "rewriteM3U8");
-
 async function handleProxy3(url) {
   const target = url.searchParams.get("url");
   const referer = url.searchParams.get("referer") ?? `${FLIX}/`;
@@ -355,15 +318,12 @@ async function handleProxy3(url) {
   } catch {
     return json3({ error: "Invalid url param" }, 400);
   }
-  let originHeader = "https://flixcloud.cc";
-  try { originHeader = new URL(referer).origin; } catch {}
   const upstream = await fetch(target, {
     headers: {
       "User-Agent": UA5,
       "Accept": "*/*",
       "Accept-Language": "en-US,en;q=0.9",
       "Referer": referer,
-      "Origin": originHeader,
       "Sec-Fetch-Dest": "empty",
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "cross-site"
@@ -371,17 +331,13 @@ async function handleProxy3(url) {
   });
   const ct = upstream.headers.get("Content-Type") ?? "";
   const isM3U8 = ct.includes("mpegurl") || ct.includes("x-mpegurl") || targetUrl.pathname.endsWith(".m3u8") || targetUrl.pathname.endsWith(".m3u");
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "*"
-  };
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
   if (!upstream.ok) {
     return new Response(await upstream.text(), { status: upstream.status, headers: { "Content-Type": ct || "text/plain", ...corsHeaders } });
   }
   if (isM3U8) {
     const text = await upstream.text();
-    const rewritten = rewriteM3U8(text, target, url.origin, referer);
+    const rewritten = rewriteM3U8(text, target, url.origin);
     return new Response(rewritten, { status: 200, headers: { "Content-Type": "application/vnd.apple.mpegurl", ...corsHeaders } });
   }
   return new Response(upstream.body, { status: upstream.status, headers: { "Content-Type": ct || "application/octet-stream", ...corsHeaders } });
