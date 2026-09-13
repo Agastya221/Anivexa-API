@@ -59,10 +59,12 @@ async function fetchFromAniList(id) {
   const body = JSON.stringify({ query: fullQuery, variables: { id } });
   const res = await fetch("https://graphql.anilist.co", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Accept": "application/json", "User-Agent": UA },
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body,
   }).catch(() => null);
-  return await mediaFromResponse(res) ?? fetchFromAniListWeb(body);
+  const media = await mediaFromResponse(res);
+  if (media) return media;
+  return fetchFromAniListWeb(body);
 }
 
 async function getMedia(anilistId) {
@@ -77,11 +79,32 @@ async function getMedia(anilistId) {
       return r.json();
     }).catch(() => null);
 
-    const al = await fetchFromAniList(id);
+    let al = await fetchFromAniList(id);
+    let azFallback = null;
+    if (!al) {
+      azFallback = await fetch(`https://api.ani.zip/mappings?anilist_id=${id}`, {
+        headers: { "Accept": "application/json" }
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+      if (azFallback) {
+        al = {
+          title: {
+            english: azFallback.titles?.en ?? null,
+            romaji: azFallback.titles?.["x-jat"] ?? azFallback.titles?.ja ?? null,
+            native: azFallback.titles?.ja ?? null,
+          },
+          status: "RELEASING",
+          format: azFallback.mappings?.type ?? "TV",
+          episodes: azFallback.episodeCount ?? null,
+          synonyms: Object.values(azFallback.titles ?? {}),
+        };
+      }
+    }
+
     if (!al) throw new Error(`No data found for AniList ID ${id}`);
     const media = {
       id,
-      idMal: arm?.myanimelist ?? null,
+      idMal: arm?.myanimelist ?? azFallback?.mappings?.mal_id ?? null,
       title: {
         english: al.title?.english ?? null,
         romaji: al.title?.romaji ?? null,

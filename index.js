@@ -1,3 +1,8 @@
+import { Buffer } from "node:buffer";
+import process from "node:process";
+if (typeof globalThis.Buffer === "undefined") globalThis.Buffer = Buffer;
+if (typeof globalThis.process === "undefined") globalThis.process = process;
+
 import { getMedia }                from "./core/anilist.js";
 import { mapAnimeIds }             from "./core/mapper.js";
 import mkissaHandler               from "./providers/mkissa.js";

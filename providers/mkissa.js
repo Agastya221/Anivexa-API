@@ -20,8 +20,8 @@ const DISCOVERY_CONCURRENCY = 16;
 const DISCOVERY_LIMIT = 600;
 const FETCH_TIMEOUT_MS = 10000;
 const EXTRACT_TIMEOUT_MS = 5000;
-const MKISSA_WREQ_BROWSER = process.env.MKISSA_WREQ_BROWSER || "chrome_149";
-const MKISSA_WREQ_OS = process.env.MKISSA_WREQ_OS || "windows";
+const MKISSA_WREQ_BROWSER = (typeof process !== "undefined" && process.env?.MKISSA_WREQ_BROWSER) || "chrome_149";
+const MKISSA_WREQ_OS = (typeof process !== "undefined" && process.env?.MKISSA_WREQ_OS) || "windows";
 const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlYjdkMWM0ZTgwMGUzM2FiMmE3Y2I3NDA5YmM4NjQ2YSIsIm5iZiI6MTc3OTUzMDcxOS40MzIsInN1YiI6IjZhMTE3YmRmYTlhNjNlYmFiOWUzYjc4YyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.Z9pa96oJEyicf6wAoaKGKJd9ldapeiOdktoJd4xcgLo";
 
 const HEX_TABLE = {
@@ -141,7 +141,7 @@ async function apiSessionFetch(url, options = {}) {
     storeCookies(res.headers);
     return res;
   } catch (error) {
-    if (process.env.MKISSA_WREQ_REQUIRED === "1") throw error;
+    if (typeof process !== "undefined" && process.env?.MKISSA_WREQ_REQUIRED === "1") throw error;
     return sessionFetch(url, options);
   }
 }
