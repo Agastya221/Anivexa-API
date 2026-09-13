@@ -253,6 +253,7 @@ async function handleWatch3(anilistId, audio, epNum, origin) {
     index,
     url: item.url,
     type: "hls",
+    referer: "https://flixcloud.cc/",
     embed: source.dataLink,
     subtitles: item.subtitles ?? [],
     thumbnails_vtt: item.thumbnails_vtt ?? null,
